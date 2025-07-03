@@ -45,6 +45,10 @@ jobs:
           output_location: "" # Built app content directory - optional
           github_id_token: ${{ steps.idtoken.outputs.result }}
           ###### End of Repository/Build Configurations ######
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          NEXT_PUBLIC_IMAGE_STORAGE_MODE: ${{ secrets.NEXT_PUBLIC_IMAGE_STORAGE_MODE }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
