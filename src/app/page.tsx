@@ -209,19 +209,9 @@ export default function HomePage() {
                 console.log('SSO auth status response:', data);
                 setSsoAuthStatus(data);
                 
-                // If user is not authenticated, redirect to Microsoft sign-in
-                if (!data.authenticated) {
-                    console.log('User not authenticated, redirecting to Microsoft sign-in...');
-                    window.location.href = '/login';
-                    return;
-                }
             } catch (error) {
                 console.error('Error fetching SSO auth status:', error);
                 setSsoAuthStatus({ authenticated: false, user: null });
-                // On error, also redirect to sign-in
-                console.log('Auth check failed, redirecting to Microsoft sign-in...');
-                window.location.href = '/login';
-                return;
             } finally {
                 setAuthCheckComplete(true);
             }
@@ -249,20 +239,9 @@ export default function HomePage() {
                         const data = await response.json();
                         console.log('SSO auth status response (visibility):', data);
                         setSsoAuthStatus(data);
-                        
-                        // If user is not authenticated, redirect to Microsoft sign-in
-                        if (!data.authenticated) {
-                            console.log('User not authenticated on visibility change, redirecting to Microsoft sign-in...');
-                            window.location.href = '/login';
-                            return;
-                        }
                     } catch (error) {
                         console.error('Error fetching SSO auth status (visibility):', error);
                         setSsoAuthStatus({ authenticated: false, user: null });
-                        // On error, also redirect to sign-in
-                        console.log('Auth check failed on visibility change, redirecting to Microsoft sign-in...');
-                        window.location.href = '/login';
-                        return;
                     }
                 };
                 fetchSsoAuthStatus();
@@ -444,11 +423,6 @@ export default function HomePage() {
             const result = await response.json();
 
             if (!response.ok) {
-                if (response.status === 401) {
-                    console.log('API call unauthorized, redirecting to Microsoft sign-in...');
-                    window.location.href = '/login';
-                    return;
-                }
                 throw new Error(result.error || `API request failed with status ${response.status}`);
             }
 
