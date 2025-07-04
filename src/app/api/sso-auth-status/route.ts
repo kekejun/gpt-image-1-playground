@@ -13,10 +13,16 @@ interface UserInfo {
 }
 
 export async function GET(request: NextRequest) {
+    // Debug: Log all headers to see what's available
+    console.log('=== SSO Auth Status Debug ===');
+    console.log('All headers:', Object.fromEntries(request.headers.entries()));
+    
     // Azure Static Web Apps provides user info in headers
     const userPrincipal = request.headers.get('x-ms-client-principal');
+    console.log('x-ms-client-principal header:', userPrincipal);
     
     if (!userPrincipal) {
+        console.log('No user principal found, user not authenticated');
         return NextResponse.json({ 
             authenticated: false, 
             user: null 

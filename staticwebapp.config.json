@@ -5,8 +5,16 @@
       "redirect": "/.auth/login/aad"
     },
     {
-      "route": "/api/*",
+      "route": "/api/auth-status",
       "allowedRoles": ["authenticated", "anonymous"]
+    },
+    {
+      "route": "/api/sso-auth-status",
+      "allowedRoles": ["authenticated", "anonymous"]
+    },
+    {
+      "route": "/api/*",
+      "allowedRoles": ["authenticated"]
     }
   ]
 } 

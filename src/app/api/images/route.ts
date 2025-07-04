@@ -67,8 +67,12 @@ function sha256(data: string): string {
 }
 
 function isUserAuthenticated(request: NextRequest, formData: FormData): boolean {
+    console.log('=== Authentication Check ===');
+    
     // Check SSO authentication first
     const userPrincipal = request.headers.get('x-ms-client-principal');
+    console.log('SSO header present:', !!userPrincipal);
+    
     if (userPrincipal) {
         try {
             const decodedPrincipal = atob(userPrincipal);
@@ -90,18 +94,25 @@ function isUserAuthenticated(request: NextRequest, formData: FormData): boolean 
         }
     }
 
-    // Fallback to password authentication
-    if (process.env.APP_PASSWORD) {
-        const clientPasswordHash = formData.get('passwordHash') as string | null;
-        if (clientPasswordHash) {
-            const serverPasswordHash = sha256(process.env.APP_PASSWORD);
-            if (clientPasswordHash === serverPasswordHash) {
-                console.log('User authenticated via password');
-                return true;
-            }
+    // Check password authentication
+    const hasAppPassword = !!process.env.APP_PASSWORD;
+    const clientPasswordHash = formData.get('passwordHash') as string | null;
+    
+    console.log('Password auth available:', hasAppPassword);
+    console.log('Client password hash provided:', !!clientPasswordHash);
+    
+    if (hasAppPassword && clientPasswordHash) {
+        const serverPasswordHash = sha256(process.env.APP_PASSWORD);
+        if (clientPasswordHash === serverPasswordHash) {
+            console.log('User authenticated via password');
+            return true;
+        } else {
+            console.log('Invalid password hash');
         }
     }
 
+    // If no SSO and no password authentication is available, deny access
+    console.log('No authentication method succeeded');
     return false;
 }
 

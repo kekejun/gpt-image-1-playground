@@ -190,6 +190,7 @@ export default function HomePage() {
                     throw new Error('Failed to fetch SSO auth status');
                 }
                 const data = await response.json();
+                console.log('SSO auth status response:', data);
                 setSsoAuthStatus(data);
             } catch (error) {
                 console.error('Error fetching SSO auth status:', error);
@@ -203,6 +204,33 @@ export default function HomePage() {
         if (storedHash) {
             setClientPasswordHash(storedHash);
         }
+    }, []);
+
+    // Refresh SSO auth status when the page becomes visible (user returns from login)
+    React.useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                console.log('Page became visible, refreshing SSO auth status');
+                const fetchSsoAuthStatus = async () => {
+                    try {
+                        const response = await fetch('/api/sso-auth-status');
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch SSO auth status');
+                        }
+                        const data = await response.json();
+                        console.log('SSO auth status response (visibility):', data);
+                        setSsoAuthStatus(data);
+                    } catch (error) {
+                        console.error('Error fetching SSO auth status (visibility):', error);
+                        setSsoAuthStatus({ authenticated: false, user: null });
+                    }
+                };
+                fetchSsoAuthStatus();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     React.useEffect(() => {
