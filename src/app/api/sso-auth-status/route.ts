@@ -34,17 +34,16 @@ export async function GET(request: NextRequest) {
         const decodedPrincipal = atob(userPrincipal);
         const userInfo: UserInfo = JSON.parse(decodedPrincipal);
         
-        // Validate tenant if AZURE_TENANT_ID is set
-        const azureTenantId = process.env.AZURE_TENANT_ID;
-        if (azureTenantId) {
-            const tenantClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'tid');
-            if (!tenantClaim || tenantClaim.val !== azureTenantId) {
-                console.log('User not from authorized tenant:', tenantClaim?.val);
-                return NextResponse.json({ 
-                    authenticated: false, 
-                    user: null 
-                });
-            }
+        // Validate email domain for company access
+        const emailClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'email');
+        const userEmail = emailClaim?.val || '';
+        
+        if (!userEmail.endsWith('@herzogdemeuron.com')) {
+            console.log('User not from company domain:', userEmail);
+            return NextResponse.json({ 
+                authenticated: false, 
+                user: null 
+            });
         }
         
         return NextResponse.json({
@@ -52,7 +51,7 @@ export async function GET(request: NextRequest) {
             user: {
                 id: userInfo.userId,
                 name: userInfo.userDetails,
-                email: userInfo.claims?.find((c: UserClaim) => c.typ === 'email')?.val || null,
+                email: userEmail,
                 provider: userInfo.identityProvider
             }
         });

@@ -78,16 +78,16 @@ function isUserAuthenticated(request: NextRequest, formData: FormData): boolean 
             const decodedPrincipal = atob(userPrincipal);
             const userInfo: UserInfo = JSON.parse(decodedPrincipal);
             if (userInfo.userId) {
-                // Validate tenant if AZURE_TENANT_ID is set
-                const azureTenantId = process.env.AZURE_TENANT_ID;
-                if (azureTenantId) {
-                    const tenantClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'tid');
-                    if (!tenantClaim || tenantClaim.val !== azureTenantId) {
-                        console.log('User not from authorized tenant:', tenantClaim?.val);
-                        return false;
-                    }
+                // Validate email domain for company access
+                const emailClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'email');
+                const userEmail = emailClaim?.val || '';
+                
+                if (!userEmail.endsWith('@herzogdemeuron.com')) {
+                    console.log('User not from company domain:', userEmail);
+                    return false;
                 }
-                console.log('User authenticated via SSO:', userInfo.userDetails);
+                
+                console.log('User authenticated via SSO:', userInfo.userDetails, userEmail);
                 return true;
             }
         } catch (error) {
