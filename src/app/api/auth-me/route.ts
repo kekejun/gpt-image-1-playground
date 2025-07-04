@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface AuthClaim {
+    typ: string;
+    val: string;
+}
+
+interface AuthUser {
+    user_id: string;
+    identity_provider: string;
+    user_claims?: AuthClaim[];
+}
+
 export async function GET(request: NextRequest) {
     console.log('=== Auth Me Debug ===');
     
@@ -17,12 +28,12 @@ export async function GET(request: NextRequest) {
         console.log('Auth me response status:', response.status);
         
         if (response.ok) {
-            const authData = await response.json();
+            const authData: AuthUser[] = await response.json();
             console.log('Auth me data:', authData);
             
             if (authData && authData.length > 0) {
                 const user = authData[0];
-                const userEmail = user.user_claims?.find((claim: any) => claim.typ === 'email')?.val || '';
+                const userEmail = user.user_claims?.find((claim: AuthClaim) => claim.typ === 'email')?.val || '';
                 
                 // Check Herzog de Meuron email domain
                 if (userEmail.endsWith('@herzogdemeuron.com')) {
@@ -30,7 +41,7 @@ export async function GET(request: NextRequest) {
                         authenticated: true,
                         user: {
                             id: user.user_id,
-                            name: user.user_claims?.find((claim: any) => claim.typ === 'name')?.val || user.user_id,
+                            name: user.user_claims?.find((claim: AuthClaim) => claim.typ === 'name')?.val || user.user_id,
                             email: userEmail,
                             provider: user.identity_provider
                         }
