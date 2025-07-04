@@ -185,29 +185,38 @@ export default function HomePage() {
 
         const fetchSsoAuthStatus = async () => {
             try {
-                // Try the new auth-me endpoint first
-                console.log('Trying /api/auth-me endpoint...');
-                const authMeResponse = await fetch('/api/auth-me');
-                if (authMeResponse.ok) {
-                    const authMeData = await authMeResponse.json();
-                    console.log('Auth-me response:', authMeData);
+                // Use Azure Static Web Apps built-in auth endpoint
+                console.log('Trying /.auth/me endpoint...');
+                const response = await fetch('/.auth/me');
+                if (response.ok) {
+                    const authData = await response.json();
+                    console.log('Auth data:', authData);
                     
-                    if (authMeData.authenticated) {
-                        setSsoAuthStatus(authMeData);
-                        setAuthCheckComplete(true);
-                        return;
+                    if (authData.clientPrincipal) {
+                        const user = authData.clientPrincipal;
+                        const userEmail = user.userDetails || '';
+                        
+                        // Check Herzog de Meuron email domain
+                        if (userEmail.endsWith('@herzogdemeuron.com')) {
+                            setSsoAuthStatus({
+                                authenticated: true,
+                                user: {
+                                    id: user.userId,
+                                    name: user.userDetails || user.userId,
+                                    email: userEmail,
+                                    provider: user.identityProvider
+                                }
+                            });
+                        } else {
+                            console.log('User not from company domain:', userEmail);
+                            setSsoAuthStatus({ authenticated: false, user: null });
+                        }
+                    } else {
+                        setSsoAuthStatus({ authenticated: false, user: null });
                     }
+                } else {
+                    setSsoAuthStatus({ authenticated: false, user: null });
                 }
-                
-                // Fallback to original method
-                console.log('Trying /api/sso-auth-status endpoint...');
-                const response = await fetch('/api/sso-auth-status');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch SSO auth status');
-                }
-                const data = await response.json();
-                console.log('SSO auth status response:', data);
-                setSsoAuthStatus(data);
                 
             } catch (error) {
                 console.error('Error fetching SSO auth status:', error);
@@ -232,13 +241,37 @@ export default function HomePage() {
                 console.log('Page became visible, refreshing SSO auth status');
                 const fetchSsoAuthStatus = async () => {
                     try {
-                        const response = await fetch('/api/sso-auth-status');
-                        if (!response.ok) {
-                            throw new Error('Failed to fetch SSO auth status');
+                        console.log('Trying /.auth/me endpoint (visibility)...');
+                        const response = await fetch('/.auth/me');
+                        if (response.ok) {
+                            const authData = await response.json();
+                            console.log('Auth data (visibility):', authData);
+                            
+                            if (authData.clientPrincipal) {
+                                const user = authData.clientPrincipal;
+                                const userEmail = user.userDetails || '';
+                                
+                                // Check Herzog de Meuron email domain
+                                if (userEmail.endsWith('@herzogdemeuron.com')) {
+                                    setSsoAuthStatus({
+                                        authenticated: true,
+                                        user: {
+                                            id: user.userId,
+                                            name: user.userDetails || user.userId,
+                                            email: userEmail,
+                                            provider: user.identityProvider
+                                        }
+                                    });
+                                } else {
+                                    console.log('User not from company domain (visibility):', userEmail);
+                                    setSsoAuthStatus({ authenticated: false, user: null });
+                                }
+                            } else {
+                                setSsoAuthStatus({ authenticated: false, user: null });
+                            }
+                        } else {
+                            setSsoAuthStatus({ authenticated: false, user: null });
                         }
-                        const data = await response.json();
-                        console.log('SSO auth status response (visibility):', data);
-                        setSsoAuthStatus(data);
                     } catch (error) {
                         console.error('Error fetching SSO auth status (visibility):', error);
                         setSsoAuthStatus({ authenticated: false, user: null });
