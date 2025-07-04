@@ -17,6 +17,10 @@
       "allowedRoles": ["authenticated", "anonymous"]
     },
     {
+      "route": "/api/auth-me",
+      "allowedRoles": ["authenticated", "anonymous"]
+    },
+    {
       "route": "/api/*",
       "allowedRoles": ["authenticated"]
     }

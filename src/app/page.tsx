@@ -185,6 +185,22 @@ export default function HomePage() {
 
         const fetchSsoAuthStatus = async () => {
             try {
+                // Try the new auth-me endpoint first
+                console.log('Trying /api/auth-me endpoint...');
+                const authMeResponse = await fetch('/api/auth-me');
+                if (authMeResponse.ok) {
+                    const authMeData = await authMeResponse.json();
+                    console.log('Auth-me response:', authMeData);
+                    
+                    if (authMeData.authenticated) {
+                        setSsoAuthStatus(authMeData);
+                        setAuthCheckComplete(true);
+                        return;
+                    }
+                }
+                
+                // Fallback to original method
+                console.log('Trying /api/sso-auth-status endpoint...');
                 const response = await fetch('/api/sso-auth-status');
                 if (!response.ok) {
                     throw new Error('Failed to fetch SSO auth status');

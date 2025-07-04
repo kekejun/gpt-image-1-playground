@@ -17,9 +17,21 @@ export async function GET(request: NextRequest) {
     console.log('=== SSO Auth Status Debug ===');
     console.log('All headers:', Object.fromEntries(request.headers.entries()));
     
-    // Azure Static Web Apps provides user info in headers
+    // Try different header names that Azure Static Web Apps might use
     const userPrincipal = request.headers.get('x-ms-client-principal');
-    console.log('x-ms-client-principal header:', userPrincipal);
+    const msClientPrincipal = request.headers.get('X-MS-CLIENT-PRINCIPAL');
+    const authHeaders = {
+        'x-ms-client-principal': userPrincipal,
+        'X-MS-CLIENT-PRINCIPAL': msClientPrincipal,
+        'x-ms-client-principal-id': request.headers.get('x-ms-client-principal-id'),
+        'x-ms-client-principal-name': request.headers.get('x-ms-client-principal-name'),
+        'x-ms-client-principal-idp': request.headers.get('x-ms-client-principal-idp')
+    };
+    console.log('Auth headers:', authHeaders);
+    
+    // Check URL for debugging
+    console.log('Request URL:', request.url);
+    console.log('Request method:', request.method);
     
     if (!userPrincipal) {
         console.log('No user principal found, user not authenticated');
