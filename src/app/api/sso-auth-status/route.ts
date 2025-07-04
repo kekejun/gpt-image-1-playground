@@ -35,9 +35,10 @@ export async function GET(request: NextRequest) {
         const userInfo: UserInfo = JSON.parse(decodedPrincipal);
         
         // Validate tenant if AZURE_TENANT_ID is set
-        if (process.env.AZURE_TENANT_ID) {
+        const azureTenantId = process.env.AZURE_TENANT_ID;
+        if (azureTenantId) {
             const tenantClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'tid');
-            if (!tenantClaim || tenantClaim.val !== process.env.AZURE_TENANT_ID) {
+            if (!tenantClaim || tenantClaim.val !== azureTenantId) {
                 console.log('User not from authorized tenant:', tenantClaim?.val);
                 return NextResponse.json({ 
                     authenticated: false, 

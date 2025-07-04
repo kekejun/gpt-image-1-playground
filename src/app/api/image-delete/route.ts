@@ -41,9 +41,10 @@ function isUserAuthenticated(request: NextRequest, requestBody: { passwordHash?:
             const userInfo: UserInfo = JSON.parse(decodedPrincipal);
             if (userInfo.userId) {
                 // Validate tenant if AZURE_TENANT_ID is set
-                if (process.env.AZURE_TENANT_ID) {
+                const azureTenantId = process.env.AZURE_TENANT_ID;
+                if (azureTenantId) {
                     const tenantClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'tid');
-                    if (!tenantClaim || tenantClaim.val !== process.env.AZURE_TENANT_ID) {
+                    if (!tenantClaim || tenantClaim.val !== azureTenantId) {
                         console.log('User not from authorized tenant:', tenantClaim?.val);
                         return false;
                     }
@@ -57,10 +58,11 @@ function isUserAuthenticated(request: NextRequest, requestBody: { passwordHash?:
     }
 
     // Fallback to password authentication
-    if (process.env.APP_PASSWORD) {
+    const appPassword = process.env.APP_PASSWORD;
+    if (appPassword) {
         const clientPasswordHash = requestBody.passwordHash as string | null;
         if (clientPasswordHash) {
-            const serverPasswordHash = sha256(process.env.APP_PASSWORD);
+            const serverPasswordHash = sha256(appPassword);
             if (clientPasswordHash === serverPasswordHash) {
                 console.log('User authenticated via password');
                 return true;
