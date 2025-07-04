@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - sso
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
