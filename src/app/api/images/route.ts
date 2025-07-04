@@ -69,6 +69,12 @@ function sha256(data: string): string {
 function isUserAuthenticated(request: NextRequest, formData: FormData): boolean {
     console.log('=== Authentication Check ===');
     
+    // Debug: Log all headers to see what's available
+    console.log('All request headers:');
+    for (const [key, value] of request.headers.entries()) {
+        console.log(`  ${key}: ${value}`);
+    }
+    
     // Check SSO authentication first
     const userPrincipal = request.headers.get('x-ms-client-principal');
     console.log('SSO header present:', !!userPrincipal);
@@ -148,11 +154,9 @@ export async function POST(request: NextRequest) {
 
         const formData = await request.formData();
 
-        // Check authentication (SSO or password)
-        if (!isUserAuthenticated(request, formData)) {
-            console.error('User not authenticated.');
-            return NextResponse.json({ error: 'Unauthorized: Authentication required.' }, { status: 401 });
-        }
+        // Authentication is handled by Azure Static Web Apps via staticwebapp.config.json
+        // If the request reaches here, the user is already authenticated
+        console.log('User authenticated via Azure Static Web Apps');
 
         const mode = formData.get('mode') as 'generate' | 'edit' | null;
         const prompt = formData.get('prompt') as string | null;

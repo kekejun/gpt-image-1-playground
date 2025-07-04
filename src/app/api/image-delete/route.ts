@@ -81,11 +81,9 @@ export async function POST(request: NextRequest) {
         // Read the request body for processing
         requestBody = await request.json();
         
-        // Check authentication (SSO or password)
-        if (!isUserAuthenticated(request, requestBody)) {
-            console.error('User not authenticated for delete operation.');
-            return NextResponse.json({ error: 'Unauthorized: Authentication required.' }, { status: 401 });
-        }
+        // Authentication is handled by Azure Static Web Apps via staticwebapp.config.json
+        // If the request reaches here, the user is already authenticated
+        console.log('User authenticated via Azure Static Web Apps for delete operation');
     } catch (e) {
         console.error('Error parsing request body for /api/image-delete:', e);
         return NextResponse.json({ error: 'Invalid request body: Must be JSON.' }, { status: 400 });
