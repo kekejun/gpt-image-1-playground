@@ -170,17 +170,9 @@ export default function HomePage() {
 
     React.useEffect(() => {
         const fetchAuthStatus = async () => {
-            try {
-                const response = await fetch('/api/auth-status');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch auth status');
-                }
-                const data = await response.json();
-                setIsPasswordRequiredByBackend(data.passwordRequired);
-            } catch (error) {
-                console.error('Error fetching auth status:', error);
-                setIsPasswordRequiredByBackend(false);
-            }
+            // Since we're using Azure Static Web Apps authentication, 
+            // password authentication is no longer required
+            setIsPasswordRequiredByBackend(false);
         };
 
         const fetchSsoAuthStatus = async () => {

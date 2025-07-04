@@ -8,10 +8,7 @@
       "route": "/logout",
       "redirect": "/.auth/logout"
     },
-    {
-      "route": "/api/auth-status",
-      "allowedRoles": ["authenticated", "anonymous"]
-    },
+
     {
       "route": "/api/*",
       "allowedRoles": ["authenticated"]
