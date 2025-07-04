@@ -1,13 +1,8 @@
-import crypto from 'crypto';
 import fs from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 
 const outputDir = path.resolve(process.cwd(), 'generated-images');
-
-function sha256(data: string): string {
-    return crypto.createHash('sha256').update(data).digest('hex');
-}
 
 type DeleteRequestBody = {
     filenames: string[];
@@ -19,59 +14,6 @@ type FileDeletionResult = {
     success: boolean;
     error?: string;
 };
-
-interface UserClaim {
-    typ: string;
-    val: string;
-}
-
-interface UserInfo {
-    userId: string;
-    userDetails: string;
-    identityProvider: string;
-    claims?: UserClaim[];
-}
-
-function isUserAuthenticated(request: NextRequest, requestBody: { passwordHash?: string }): boolean {
-    // Check SSO authentication first
-    const userPrincipal = request.headers.get('x-ms-client-principal');
-    if (userPrincipal) {
-        try {
-            const decodedPrincipal = atob(userPrincipal);
-            const userInfo: UserInfo = JSON.parse(decodedPrincipal);
-            if (userInfo.userId) {
-                // Validate email domain for company access
-                const emailClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'email');
-                const userEmail = emailClaim?.val || '';
-                
-                if (!userEmail.endsWith('@herzogdemeuron.com')) {
-                    console.log('User not from company domain:', userEmail);
-                    return false;
-                }
-                
-                console.log('User authenticated via SSO:', userInfo.userDetails, userEmail);
-                return true;
-            }
-        } catch (error) {
-            console.error('Error parsing SSO user principal:', error);
-        }
-    }
-
-    // Fallback to password authentication
-    const appPassword = process.env.APP_PASSWORD;
-    if (appPassword) {
-        const clientPasswordHash = requestBody.passwordHash as string | null;
-        if (clientPasswordHash) {
-            const serverPasswordHash = sha256(appPassword);
-            if (clientPasswordHash === serverPasswordHash) {
-                console.log('User authenticated via password');
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
 
 export async function POST(request: NextRequest) {
     console.log('Received POST request to /api/image-delete');

@@ -50,78 +50,7 @@ async function ensureOutputDirExists() {
     }
 }
 
-interface UserClaim {
-    typ: string;
-    val: string;
-}
 
-interface UserInfo {
-    userId: string;
-    userDetails: string;
-    identityProvider: string;
-    claims?: UserClaim[];
-}
-
-function sha256(data: string): string {
-    return crypto.createHash('sha256').update(data).digest('hex');
-}
-
-function isUserAuthenticated(request: NextRequest, formData: FormData): boolean {
-    console.log('=== Authentication Check ===');
-    
-    // Debug: Log all headers to see what's available
-    console.log('All request headers:');
-    for (const [key, value] of request.headers.entries()) {
-        console.log(`  ${key}: ${value}`);
-    }
-    
-    // Check SSO authentication first
-    const userPrincipal = request.headers.get('x-ms-client-principal');
-    console.log('SSO header present:', !!userPrincipal);
-    
-    if (userPrincipal) {
-        try {
-            const decodedPrincipal = atob(userPrincipal);
-            const userInfo: UserInfo = JSON.parse(decodedPrincipal);
-            if (userInfo.userId) {
-                // Validate email domain for company access
-                const emailClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'email');
-                const userEmail = emailClaim?.val || '';
-                
-                if (!userEmail.endsWith('@herzogdemeuron.com')) {
-                    console.log('User not from company domain:', userEmail);
-                    return false;
-                }
-                
-                console.log('User authenticated via SSO:', userInfo.userDetails, userEmail);
-                return true;
-            }
-        } catch (error) {
-            console.error('Error parsing SSO user principal:', error);
-        }
-    }
-
-    // Check password authentication
-    const appPassword = process.env.APP_PASSWORD;
-    const clientPasswordHash = formData.get('passwordHash') as string | null;
-    
-    console.log('Password auth available:', !!appPassword);
-    console.log('Client password hash provided:', !!clientPasswordHash);
-    
-    if (appPassword && clientPasswordHash) {
-        const serverPasswordHash = sha256(appPassword);
-        if (clientPasswordHash === serverPasswordHash) {
-            console.log('User authenticated via password');
-            return true;
-        } else {
-            console.log('Invalid password hash');
-        }
-    }
-
-    // If no SSO and no password authentication is available, deny access
-    console.log('No authentication method succeeded');
-    return false;
-}
 
 export async function POST(request: NextRequest) {
     console.log('Received POST request to /api/images');
