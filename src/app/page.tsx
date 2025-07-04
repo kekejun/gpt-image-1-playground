@@ -72,6 +72,7 @@ export default function HomePage() {
         authenticated: boolean;
         user: { id: string; name: string; email: string | null; provider: string } | null;
     } | null>(null);
+    const [authCheckComplete, setAuthCheckComplete] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(false);
     const [isSendingToEdit, setIsSendingToEdit] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -192,9 +193,22 @@ export default function HomePage() {
                 const data = await response.json();
                 console.log('SSO auth status response:', data);
                 setSsoAuthStatus(data);
+                
+                // If user is not authenticated, redirect to Microsoft sign-in
+                if (!data.authenticated) {
+                    console.log('User not authenticated, redirecting to Microsoft sign-in...');
+                    window.location.href = '/login';
+                    return;
+                }
             } catch (error) {
                 console.error('Error fetching SSO auth status:', error);
                 setSsoAuthStatus({ authenticated: false, user: null });
+                // On error, also redirect to sign-in
+                console.log('Auth check failed, redirecting to Microsoft sign-in...');
+                window.location.href = '/login';
+                return;
+            } finally {
+                setAuthCheckComplete(true);
             }
         };
 
@@ -220,9 +234,20 @@ export default function HomePage() {
                         const data = await response.json();
                         console.log('SSO auth status response (visibility):', data);
                         setSsoAuthStatus(data);
+                        
+                        // If user is not authenticated, redirect to Microsoft sign-in
+                        if (!data.authenticated) {
+                            console.log('User not authenticated on visibility change, redirecting to Microsoft sign-in...');
+                            window.location.href = '/login';
+                            return;
+                        }
                     } catch (error) {
                         console.error('Error fetching SSO auth status (visibility):', error);
                         setSsoAuthStatus({ authenticated: false, user: null });
+                        // On error, also redirect to sign-in
+                        console.log('Auth check failed on visibility change, redirecting to Microsoft sign-in...');
+                        window.location.href = '/login';
+                        return;
                     }
                 };
                 fetchSsoAuthStatus();
@@ -408,12 +433,9 @@ export default function HomePage() {
             const result = await response.json();
 
             if (!response.ok) {
-                if (response.status === 401 && isPasswordRequiredByBackend) {
-                    setError('Unauthorized: Invalid or missing password. Please try again.');
-                    setPasswordDialogContext('retry');
-                    setLastApiCallArgs([formData]);
-                    setIsPasswordDialogOpen(true);
-
+                if (response.status === 401) {
+                    console.log('API call unauthorized, redirecting to Microsoft sign-in...');
+                    window.location.href = '/login';
                     return;
                 }
                 throw new Error(result.error || `API request failed with status ${response.status}`);
@@ -744,6 +766,29 @@ export default function HomePage() {
         setItemToDeleteConfirm(null);
     };
 
+    // Show loading state while checking authentication
+    if (!authCheckComplete) {
+        return (
+            <main className='flex min-h-screen flex-col items-center justify-center bg-black p-4 text-white'>
+                <div className='text-center space-y-4'>
+                    <div className='h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent mx-auto'></div>
+                    <p className='text-white/80'>Checking authentication...</p>
+                </div>
+            </main>
+        );
+    }
+
+    // Only show the app if user is authenticated
+    if (!ssoAuthStatus?.authenticated) {
+        return (
+            <main className='flex min-h-screen flex-col items-center justify-center bg-black p-4 text-white'>
+                <div className='text-center space-y-4'>
+                    <p className='text-white/80'>Redirecting to Microsoft sign-in...</p>
+                </div>
+            </main>
+        );
+    }
+
     return (
         <main className='flex min-h-screen flex-col items-center bg-black p-4 text-white md:p-8 lg:p-12'>
             <PasswordDialog
@@ -763,26 +808,12 @@ export default function HomePage() {
                     <div className='flex items-center gap-3'>
                         <div className='h-2 w-2 rounded-full bg-green-500'></div>
                         <span className='text-sm text-white/80'>
-                            {ssoAuthStatus?.authenticated ? (
-                                <>
-                                    Signed in as <span className='font-medium text-white'>{ssoAuthStatus.user?.name}</span>
-                                    {ssoAuthStatus.user?.email && (
-                                        <span className='text-white/60'> ({ssoAuthStatus.user.email})</span>
-                                    )}
-                                </>
-                            ) : (
-                                'Not signed in with Microsoft'
+                            Signed in as <span className='font-medium text-white'>{ssoAuthStatus.user?.name}</span>
+                            {ssoAuthStatus.user?.email && (
+                                <span className='text-white/60'> ({ssoAuthStatus.user.email})</span>
                             )}
                         </span>
                     </div>
-                    {!ssoAuthStatus?.authenticated && (
-                        <a 
-                            href='/login' 
-                            className='rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors'
-                        >
-                            Sign in with Microsoft
-                        </a>
-                    )}
                 </div>
                 
                 <div className='grid grid-cols-1 gap-6 lg:grid-cols-2'>
