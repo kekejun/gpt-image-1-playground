@@ -20,17 +20,29 @@ type FileDeletionResult = {
     error?: string;
 };
 
-function isUserAuthenticated(request: NextRequest, requestBody: any): boolean {
+interface UserClaim {
+    typ: string;
+    val: string;
+}
+
+interface UserInfo {
+    userId: string;
+    userDetails: string;
+    identityProvider: string;
+    claims?: UserClaim[];
+}
+
+function isUserAuthenticated(request: NextRequest, requestBody: { passwordHash?: string }): boolean {
     // Check SSO authentication first
     const userPrincipal = request.headers.get('x-ms-client-principal');
     if (userPrincipal) {
         try {
             const decodedPrincipal = atob(userPrincipal);
-            const userInfo = JSON.parse(decodedPrincipal);
+            const userInfo: UserInfo = JSON.parse(decodedPrincipal);
             if (userInfo.userId) {
                 // Validate tenant if AZURE_TENANT_ID is set
                 if (process.env.AZURE_TENANT_ID) {
-                    const tenantClaim = userInfo.claims?.find((c: any) => c.typ === 'tid');
+                    const tenantClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'tid');
                     if (!tenantClaim || tenantClaim.val !== process.env.AZURE_TENANT_ID) {
                         console.log('User not from authorized tenant:', tenantClaim?.val);
                         return false;

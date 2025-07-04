@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface UserClaim {
+    typ: string;
+    val: string;
+}
+
+interface UserInfo {
+    userId: string;
+    userDetails: string;
+    identityProvider: string;
+    claims?: UserClaim[];
+}
+
 export async function GET(request: NextRequest) {
     // Azure Static Web Apps provides user info in headers
     const userPrincipal = request.headers.get('x-ms-client-principal');
@@ -14,11 +26,11 @@ export async function GET(request: NextRequest) {
     try {
         // Decode the base64 encoded user principal
         const decodedPrincipal = atob(userPrincipal);
-        const userInfo = JSON.parse(decodedPrincipal);
+        const userInfo: UserInfo = JSON.parse(decodedPrincipal);
         
         // Validate tenant if AZURE_TENANT_ID is set
         if (process.env.AZURE_TENANT_ID) {
-            const tenantClaim = userInfo.claims?.find((c: any) => c.typ === 'tid');
+            const tenantClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'tid');
             if (!tenantClaim || tenantClaim.val !== process.env.AZURE_TENANT_ID) {
                 console.log('User not from authorized tenant:', tenantClaim?.val);
                 return NextResponse.json({ 
@@ -33,7 +45,7 @@ export async function GET(request: NextRequest) {
             user: {
                 id: userInfo.userId,
                 name: userInfo.userDetails,
-                email: userInfo.claims?.find((c: any) => c.typ === 'email')?.val || null,
+                email: userInfo.claims?.find((c: UserClaim) => c.typ === 'email')?.val || null,
                 provider: userInfo.identityProvider
             }
         });
