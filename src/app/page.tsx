@@ -818,9 +818,19 @@ export default function HomePage() {
                     <div className='flex items-center gap-3'>
                         <div className='h-2 w-2 rounded-full bg-green-500'></div>
                         <span className='text-sm text-white/80'>
-                            Signed in as <span className='font-medium text-white'>{ssoAuthStatus.user?.name}</span>
-                            {ssoAuthStatus.user?.email && (
-                                <span className='text-white/60'> ({ssoAuthStatus.user.email})</span>
+                            Signed in as <span className='font-medium text-white'>{ssoAuthStatus.user?.email}</span>
+                            {process.env.NEXT_PUBLIC_HELP_URL && (
+                                <>
+                                    {' '}- for more guidance see{' '}
+                                    <a 
+                                        href={process.env.NEXT_PUBLIC_HELP_URL} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className='text-blue-400 hover:text-blue-300 underline'
+                                    >
+                                        {process.env.NEXT_PUBLIC_HELP_URL}
+                                    </a>
+                                </>
                             )}
                         </span>
                     </div>
