@@ -68,6 +68,10 @@ export default function HomePage() {
     const [mode, setMode] = React.useState<'generate' | 'edit'>('generate');
     const [isPasswordRequiredByBackend, setIsPasswordRequiredByBackend] = React.useState<boolean | null>(null);
     const [clientPasswordHash, setClientPasswordHash] = React.useState<string | null>(null);
+    const [ssoAuthStatus, setSsoAuthStatus] = React.useState<{
+        authenticated: boolean;
+        user: { id: string; name: string; email: string | null; provider: string } | null;
+    } | null>(null);
     const [isLoading, setIsLoading] = React.useState(false);
     const [isSendingToEdit, setIsSendingToEdit] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -179,7 +183,22 @@ export default function HomePage() {
             }
         };
 
+        const fetchSsoAuthStatus = async () => {
+            try {
+                const response = await fetch('/api/sso-auth-status');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch SSO auth status');
+                }
+                const data = await response.json();
+                setSsoAuthStatus(data);
+            } catch (error) {
+                console.error('Error fetching SSO auth status:', error);
+                setSsoAuthStatus({ authenticated: false, user: null });
+            }
+        };
+
         fetchAuthStatus();
+        fetchSsoAuthStatus();
         const storedHash = localStorage.getItem('clientPasswordHash');
         if (storedHash) {
             setClientPasswordHash(storedHash);
@@ -711,6 +730,33 @@ export default function HomePage() {
                 }
             />
             <div className='w-full max-w-7xl space-y-6'>
+                {/* SSO Authentication Status */}
+                <div className='flex items-center justify-between rounded-lg border border-white/10 bg-black/50 p-4'>
+                    <div className='flex items-center gap-3'>
+                        <div className='h-2 w-2 rounded-full bg-green-500'></div>
+                        <span className='text-sm text-white/80'>
+                            {ssoAuthStatus?.authenticated ? (
+                                <>
+                                    Signed in as <span className='font-medium text-white'>{ssoAuthStatus.user?.name}</span>
+                                    {ssoAuthStatus.user?.email && (
+                                        <span className='text-white/60'> ({ssoAuthStatus.user.email})</span>
+                                    )}
+                                </>
+                            ) : (
+                                'Not signed in with Microsoft'
+                            )}
+                        </span>
+                    </div>
+                    {!ssoAuthStatus?.authenticated && (
+                        <a 
+                            href='/login' 
+                            className='rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors'
+                        >
+                            Sign in with Microsoft
+                        </a>
+                    )}
+                </div>
+                
                 <div className='grid grid-cols-1 gap-6 lg:grid-cols-2'>
                     <div className='relative flex h-[70vh] min-h-[600px] flex-col lg:col-span-1'>
                         <div className={mode === 'generate' ? 'block h-full w-full' : 'hidden'}>

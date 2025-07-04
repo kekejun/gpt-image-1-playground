@@ -54,6 +54,45 @@ function sha256(data: string): string {
     return crypto.createHash('sha256').update(data).digest('hex');
 }
 
+function isUserAuthenticated(request: NextRequest, formData: FormData): boolean {
+    // Check SSO authentication first
+    const userPrincipal = request.headers.get('x-ms-client-principal');
+    if (userPrincipal) {
+        try {
+            const decodedPrincipal = atob(userPrincipal);
+            const userInfo = JSON.parse(decodedPrincipal);
+            if (userInfo.userId) {
+                // Validate tenant if AZURE_TENANT_ID is set
+                if (process.env.AZURE_TENANT_ID) {
+                    const tenantClaim = userInfo.claims?.find((c: any) => c.typ === 'tid');
+                    if (!tenantClaim || tenantClaim.val !== process.env.AZURE_TENANT_ID) {
+                        console.log('User not from authorized tenant:', tenantClaim?.val);
+                        return false;
+                    }
+                }
+                console.log('User authenticated via SSO:', userInfo.userDetails);
+                return true;
+            }
+        } catch (error) {
+            console.error('Error parsing SSO user principal:', error);
+        }
+    }
+
+    // Fallback to password authentication
+    if (process.env.APP_PASSWORD) {
+        const clientPasswordHash = formData.get('passwordHash') as string | null;
+        if (clientPasswordHash) {
+            const serverPasswordHash = sha256(process.env.APP_PASSWORD);
+            if (clientPasswordHash === serverPasswordHash) {
+                console.log('User authenticated via password');
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 export async function POST(request: NextRequest) {
     console.log('Received POST request to /api/images');
 
@@ -85,17 +124,10 @@ export async function POST(request: NextRequest) {
 
         const formData = await request.formData();
 
-        if (process.env.APP_PASSWORD) {
-            const clientPasswordHash = formData.get('passwordHash') as string | null;
-            if (!clientPasswordHash) {
-                console.error('Missing password hash.');
-                return NextResponse.json({ error: 'Unauthorized: Missing password hash.' }, { status: 401 });
-            }
-            const serverPasswordHash = sha256(process.env.APP_PASSWORD);
-            if (clientPasswordHash !== serverPasswordHash) {
-                console.error('Invalid password hash.');
-                return NextResponse.json({ error: 'Unauthorized: Invalid password.' }, { status: 401 });
-            }
+        // Check authentication (SSO or password)
+        if (!isUserAuthenticated(request, formData)) {
+            console.error('User not authenticated.');
+            return NextResponse.json({ error: 'Unauthorized: Authentication required.' }, { status: 401 });
         }
 
         const mode = formData.get('mode') as 'generate' | 'edit' | null;

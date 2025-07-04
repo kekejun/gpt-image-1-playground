@@ -1,0 +1,23 @@
+{
+  "auth": {
+    "identityProviders": {
+      "azureActiveDirectory": {
+        "registration": {
+          "openIdIssuer": "https://login.microsoftonline.com/common/v2.0",
+          "clientIdSettingName": "AZURE_CLIENT_ID",
+          "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+        }
+      }
+    }
+  },
+  "routes": [
+    {
+      "route": "/login",
+      "redirect": "/.auth/login/aad"
+    },
+    {
+      "route": "/api/*",
+      "allowedRoles": ["authenticated", "anonymous"]
+    }
+  ]
+} 

@@ -20,30 +20,58 @@ type FileDeletionResult = {
     error?: string;
 };
 
+function isUserAuthenticated(request: NextRequest, requestBody: any): boolean {
+    // Check SSO authentication first
+    const userPrincipal = request.headers.get('x-ms-client-principal');
+    if (userPrincipal) {
+        try {
+            const decodedPrincipal = atob(userPrincipal);
+            const userInfo = JSON.parse(decodedPrincipal);
+            if (userInfo.userId) {
+                // Validate tenant if AZURE_TENANT_ID is set
+                if (process.env.AZURE_TENANT_ID) {
+                    const tenantClaim = userInfo.claims?.find((c: any) => c.typ === 'tid');
+                    if (!tenantClaim || tenantClaim.val !== process.env.AZURE_TENANT_ID) {
+                        console.log('User not from authorized tenant:', tenantClaim?.val);
+                        return false;
+                    }
+                }
+                console.log('User authenticated via SSO:', userInfo.userDetails);
+                return true;
+            }
+        } catch (error) {
+            console.error('Error parsing SSO user principal:', error);
+        }
+    }
+
+    // Fallback to password authentication
+    if (process.env.APP_PASSWORD) {
+        const clientPasswordHash = requestBody.passwordHash as string | null;
+        if (clientPasswordHash) {
+            const serverPasswordHash = sha256(process.env.APP_PASSWORD);
+            if (clientPasswordHash === serverPasswordHash) {
+                console.log('User authenticated via password');
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 export async function POST(request: NextRequest) {
     console.log('Received POST request to /api/image-delete');
 
     let requestBody: DeleteRequestBody;
     try {
-        // Clone the request to read the body for auth, then allow the original request to be read again
-        const clonedRequest = request.clone();
-        const tempBodyForAuth = await clonedRequest.json();
-
-        if (process.env.APP_PASSWORD) {
-            const clientPasswordHash = tempBodyForAuth.passwordHash as string | null;
-
-            if (!clientPasswordHash) {
-                console.error('Missing password hash for delete operation.');
-                return NextResponse.json({ error: 'Unauthorized: Missing password hash.' }, { status: 401 });
-            }
-            const serverPasswordHash = sha256(process.env.APP_PASSWORD);
-            if (clientPasswordHash !== serverPasswordHash) {
-                console.error('Invalid password hash for delete operation.');
-                return NextResponse.json({ error: 'Unauthorized: Invalid password.' }, { status: 401 });
-            }
-        }
-        // Now read the original request body for processing
+        // Read the request body for processing
         requestBody = await request.json();
+        
+        // Check authentication (SSO or password)
+        if (!isUserAuthenticated(request, requestBody)) {
+            console.error('User not authenticated for delete operation.');
+            return NextResponse.json({ error: 'Unauthorized: Authentication required.' }, { status: 401 });
+        }
     } catch (e) {
         console.error('Error parsing request body for /api/image-delete:', e);
         return NextResponse.json({ error: 'Invalid request body: Must be JSON.' }, { status: 400 });
