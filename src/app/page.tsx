@@ -349,10 +349,6 @@ export default function HomePage() {
             setClientPasswordHash(hash);
             setError(null);
             setIsPasswordDialogOpen(false);
-            if (passwordDialogContext === 'retry' && lastApiCallArgs) {
-                console.log('Retrying API call after password save...');
-                await handleApiCall(...lastApiCallArgs);
-            }
         } catch (e) {
             console.error('Error hashing password:', e);
             setError('Failed to save password due to a hashing error.');
