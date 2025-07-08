@@ -11,11 +11,11 @@
 
     {
       "route": "/api/*",
-      "allowedRoles": ["invited"]
+      "allowedRoles": ["authenticated"]
     },
     {
       "route": "/*",
-      "allowedRoles": ["invited"]
+      "allowedRoles": ["authenticated"]
     }
   ],
   "responseOverrides": {
