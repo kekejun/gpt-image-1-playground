@@ -75,76 +75,182 @@ User Access → Azure Static Web Apps → Microsoft Authentication → Domain Va
 
 ### 2. Frontend Authentication Integration
 
-**File**: `src/app/page.tsx`
+**File**: `src/app/page.tsx` (lines 178-219)
 
 **Core Authentication Logic**:
 ```javascript
 const fetchSsoAuthStatus = async () => {
-  try {
-    // Use Azure Static Web Apps built-in auth endpoint
-    const response = await fetch('/.auth/me');
-    if (response.ok) {
-      const authData = await response.json();
-      
-      if (authData.clientPrincipal) {
-        const user = authData.clientPrincipal;
-        const userEmail = user.userDetails || '';
-        
-        // Check Herzog de Meuron email domain
-        if (userEmail.endsWith('@herzogdemeuron.com')) {
-          setSsoAuthStatus({
-            authenticated: true,
-            user: {
-              id: user.userId,
-              name: user.userDetails || user.userId,
-              email: userEmail,
-              provider: user.identityProvider
+    try {
+        // Use Azure Static Web Apps built-in auth endpoint
+        console.log('Trying /.auth/me endpoint...');
+        const response = await fetch('/.auth/me');
+        if (response.ok) {
+            const authData = await response.json();
+            console.log('Auth data:', authData);
+            
+            if (authData.clientPrincipal) {
+                const user = authData.clientPrincipal;
+                const userEmail = user.userDetails || '';
+                
+                // Check Herzog de Meuron email domain
+                if (userEmail.endsWith('@herzogdemeuron.com')) {
+                    setSsoAuthStatus({
+                        authenticated: true,
+                        user: {
+                            id: user.userId,
+                            name: user.userDetails || user.userId,
+                            email: userEmail,
+                            provider: user.identityProvider
+                        }
+                    });
+                } else {
+                    console.log('User not from company domain:', userEmail);
+                    setSsoAuthStatus({ authenticated: false, user: null });
+                }
+            } else {
+                setSsoAuthStatus({ authenticated: false, user: null });
             }
-          });
         } else {
-          // User not from company domain
-          setSsoAuthStatus({ authenticated: false, user: null });
+            setSsoAuthStatus({ authenticated: false, user: null });
         }
-      }
+        
+    } catch (error) {
+        console.error('Error fetching SSO auth status:', error);
+        setSsoAuthStatus({ authenticated: false, user: null });
+    } finally {
+        setAuthCheckComplete(true);
     }
-  } catch (error) {
-    console.error('Error fetching SSO auth status:', error);
-    setSsoAuthStatus({ authenticated: false, user: null });
-  }
 };
 ```
 
+**Authentication State Management** (lines 71-75):
+```javascript
+const [ssoAuthStatus, setSsoAuthStatus] = React.useState<{
+    authenticated: boolean;
+    user: { id: string; name: string; email: string | null; provider: string } | null;
+} | null>(null);
+const [authCheckComplete, setAuthCheckComplete] = React.useState(false);
+```
+
+**Session Refresh on Page Visibility** (lines 229-278):
+```javascript
+React.useEffect(() => {
+    const handleVisibilityChange = () => {
+        if (!document.hidden) {
+            console.log('Page became visible, refreshing SSO auth status');
+            // Refreshes authentication status when user returns to tab
+            fetchSsoAuthStatus();
+        }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+}, []);
+```
+
 **Features**:
-- **Real-time Authentication Checking**: Monitors authentication status
-- **Domain Validation**: Restricts access to company email domain
-- **User Interface Updates**: Shows authentication status and user information
+- **Real-time Authentication Checking**: Monitors authentication status on initial load and page visibility changes
+- **Domain Validation**: Restricts access to company email domain (`@herzogdemeuron.com`)
+- **Session Persistence**: Refreshes authentication when user returns to the application
+- **Loading States**: Shows appropriate UI during authentication checks
 - **Error Handling**: Graceful fallback for authentication failures
 
-### 3. API Route Simplification
+### 3. API Route Authentication
 
 **Files**: 
-- `src/app/api/images/route.ts`
+- `src/app/api/images/route.ts` (lines 85-87)
 - `src/app/api/image-delete/route.ts`
+- `src/app/api/sso-auth-status/route.ts` (lines 15-77)
 
-**Key Changes**:
+**Primary Authentication Approach**:
 ```javascript
-// Before: Custom authentication checks
-// if (!isUserAuthenticated(request, formData)) {
-//   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-// }
-
-// After: Trust Azure Static Web Apps authentication
 // Authentication is handled by Azure Static Web Apps via staticwebapp.config.json
 // If the request reaches here, the user is already authenticated
 console.log('User authenticated via Azure Static Web Apps');
 ```
 
+**Server-Side SSO Validation** (`/api/sso-auth-status/route.ts`):
+```javascript
+export async function GET(request: NextRequest) {
+    // Read Azure Static Web Apps authentication headers
+    const userPrincipal = request.headers.get('x-ms-client-principal');
+    
+    if (!userPrincipal) {
+        return NextResponse.json({ 
+            authenticated: false, 
+            user: null 
+        });
+    }
+
+    try {
+        // Decode the base64 encoded user principal
+        const decodedPrincipal = atob(userPrincipal);
+        const userInfo: UserInfo = JSON.parse(decodedPrincipal);
+        
+        // Validate email domain for company access
+        const emailClaim = userInfo.claims?.find((c: UserClaim) => c.typ === 'email');
+        const userEmail = emailClaim?.val || '';
+        
+        if (!userEmail.endsWith('@herzogdemeuron.com')) {
+            return NextResponse.json({ 
+                authenticated: false, 
+                user: null 
+            });
+        }
+        
+        return NextResponse.json({
+            authenticated: true,
+            user: {
+                id: userInfo.userId,
+                name: userInfo.userDetails,
+                email: userEmail,
+                provider: userInfo.identityProvider
+            }
+        });
+    } catch (error) {
+        console.error('Error parsing user principal:', error);
+        return NextResponse.json({ 
+            authenticated: false, 
+            user: null 
+        });
+    }
+}
+```
+
 **Benefits**:
-- **Simplified Code**: Removed complex authentication logic
-- **Improved Reliability**: Leverages Azure's battle-tested authentication
-- **Better Performance**: No additional authentication checks per request
+- **Infrastructure-Level Security**: Azure Static Web Apps handles authentication before requests reach the API
+- **Simplified Code**: Removed complex authentication logic from business logic
+- **Dual Validation**: Both infrastructure-level and application-level domain validation
+- **Better Performance**: No additional authentication checks per request for protected routes
 
 ### 4. User Interface Updates
+
+**Authentication Loading State** (lines 779-789):
+```javascript
+if (!authCheckComplete) {
+    return (
+        <main className='flex min-h-screen flex-col items-center justify-center bg-black p-4 text-white'>
+            <div className='text-center space-y-4'>
+                <div className='h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent mx-auto'></div>
+                <p className='text-white/80'>Checking authentication...</p>
+            </div>
+        </main>
+    );
+}
+```
+
+**Unauthenticated State** (lines 791-800):
+```javascript
+if (!ssoAuthStatus?.authenticated) {
+    return (
+        <main className='flex min-h-screen flex-col items-center justify-center bg-black p-4 text-white'>
+            <div className='text-center space-y-4'>
+                <p className='text-white/80'>Redirecting to Microsoft sign-in...</p>
+            </div>
+        </main>
+    );
+}
+```
 
 **Authentication Status Display**:
 ```javascript
@@ -167,10 +273,11 @@ console.log('User authenticated via Azure Static Web Apps');
 ```
 
 **Features**:
-- Shows authenticated user's email address
-- Configurable help URL via environment variable
-- Professional appearance with status indicators
-- Accessible design with proper ARIA labels
+- **Loading States**: Shows spinner and message during authentication checks
+- **Redirect Indication**: Informs users they're being redirected to Microsoft sign-in
+- **User Information Display**: Shows authenticated user's email address
+- **Configurable Help URL**: Optional help link via environment variable
+- **Professional Appearance**: Clean, accessible design with proper styling
 
 ## ⚙️ Configuration
 
